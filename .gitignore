@@ -1,0 +1,9 @@
+node_modules/
+#Jakefile.js*
+*.js
+*.js.map
+*.dep.json
+*.dep.mk
+Out-Null
+build/
+package-lock.json

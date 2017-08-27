@@ -1,0 +1,23 @@
+{
+  "name": "jakets-closure",
+  "version": "1.0.0",
+  "description": "Closure task for Jakets.",
+  "main": "Jakefile.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reshadi/jakets-closure.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/reshadi/jakets/issues"
+  },
+  "homepage": "https://github.com/reshadi/jakets-closure",
+  "dependencies": {
+    "google-closure-compiler": "^20161024.3.0",
+    "jakets": "git+https://github.com/reshadi/jakets.git#v5.x.x"
+  }
+}
