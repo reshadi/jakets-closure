@@ -18,6 +18,7 @@
   "homepage": "https://github.com/reshadi/jakets-closure",
   "dependencies": {
     "google-closure-compiler": "^20161024.3.0",
-    "jakets": "git+https://github.com/reshadi/jakets.git#v5.x.x"
+    "google-closure-compiler-js": "^20170806.0.0",
+    "jakets": "git+https://github.com/reshadi/jakets.git#semver:>=5.0.0 <7.0.0"
   }
 }

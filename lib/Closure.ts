@@ -3,7 +3,6 @@ import * as Fs from "fs";
 import * as Zlib from "zlib";
 
 import * as Jakets from "jakets/lib/Jakets";
-import * as Jake from "jakets/Jake";
 import * as Util from "jakets/lib/Util";
 import { CommandInfo, ExtractFilesAndUpdateDependencyInfo } from "jakets/lib/Command";
 
@@ -24,6 +23,7 @@ export interface ClosureOptions {
   warning_level?: "QUIET" | "DEFAULT" | "VERBOSE";
   output_wrapper?: string;
   js_output_file?: string;
+  js?: string[];
   [option: string]: string | string[] | number;
 }
 
@@ -37,13 +37,24 @@ export const DefaultClosureOptions: ClosureOptions = {
   warning_level: "QUIET",
 };
 
-export function Exec(inputs: string, output: string, callback, options?: string, enableGzip?: boolean, closureOptions?: ClosureOptions) {
-  let allOptions = Object.assign({}, DefaultClosureOptions, { js_output_file: output }, closureOptions || {});
+export function GetOptions(inputs: string[], output: string, closureOptions?: ClosureOptions): ClosureOptions {
+  let allOptions = Object.assign(
+    {}
+    , DefaultClosureOptions
+    , {
+      js_output_file: output,
+      js: inputs
+    }
+    , closureOptions || {}
+  );
+  return allOptions;
+}
 
+export async function Exec(options: ClosureOptions, enableGzip?: boolean) {
   let args =
-    Object.keys(allOptions)
+    Object.keys(options)
       .map(option => {
-        let optionValue = allOptions[option];
+        let optionValue = options[option];
         let arg: string;
 
         if (typeof optionValue === "string" || typeof optionValue === "number") {
@@ -57,52 +68,45 @@ export function Exec(inputs: string, output: string, callback, options?: string,
       })
       .join(" ");
 
-  if (options) {
-    args += " " + options;
-  }
-  args += " " + inputs;
-
+  let output = options.js_output_file;
   jake.mkdirP(Path.dirname(output));
 
-  // RawExec(args, callback);
-  RawExec(
-    args,
-    enableGzip
-      ? () => Jakets.Exec("gzip --best < " + output + " > " + output + ".gz", callback)
-      : callback
-  );
+  return new Promise((resolve, reject) => {
+    RawExec(
+      args,
+      enableGzip
+        ? () => Jakets.Exec("gzip --best < " + output + " > " + output + ".gz", resolve)
+        : resolve
+    );
+  });
 }
 
 export function ClosureTask(
   name: string
   , dependencies: string[]
   , output: string
-  , inputs: string
+  , inputs: string[]
   , options?: ClosureOptions
   , enableGzip?: boolean
 ): string {
+  options = GetOptions(inputs, output, options);
   let depInfo = new CommandInfo({
     Name: name,
     Dir: Path.resolve(Util.LocalDir),
-    Output: output,
+    Command: "closure-java",
     Inputs: inputs,
+    Outputs: [output],
     Options: options,
     Dependencies: dependencies
   });
 
   return Jakets.FileTask(depInfo.DependencyFile, depInfo.AllDependencies, async function () {
-    return new Promise((resolve, reject) => {
-      Exec(
-        inputs
-        , output
-        , () => {
-          depInfo.Write();
-          resolve();
-        }
-        , ""
-        , enableGzip
-        , options
-      );
-    });
+    let sectionName = `java closure compile ${depInfo.Data.Name} with ${depInfo.DependencyFile}`;
+    console.time(sectionName);
+
+    await Exec(options, enableGzip);
+    depInfo.Write();
+
+    console.timeEnd(sectionName);
   }).GetName();
 }

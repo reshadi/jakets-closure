@@ -4,13 +4,12 @@
       "name": "Jake",
       "type": "node",
       "request": "launch",
-      // "program": "${workspaceRoot}/node_modules/jake/bin/cli.js",
-      "program": "${workspaceRoot}/Jakefile.ts",
+      "program": "${workspaceRoot}/node_modules/jake/bin/cli.js",
+      // "program": "${workspaceRoot}/Jakefile.ts",
       "stopOnEntry": false,
       "args": [
-        // "-f", "${workspaceRoot}/build/Jakefile.js",
-        // "jts:setup",
-        "test_rollup"
+        // "jts:setup"
+        "jtsc_test"
       ],
       "cwd": "${workspaceRoot}",
       "runtimeExecutable": null,

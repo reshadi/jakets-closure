@@ -18,7 +18,7 @@ ifeq ("$(JAKETS__MAKEFILE)","")
   JAKETS__MAKEFILE = $(lastword $(JAKETS__MAKEFILES))
   JAKETS__DIR = $(dir $(JAKETS__MAKEFILE))
   CMD_OUT += $(shell mkdir -p $(JAKETS__DIR) )
-  CMD_OUT += $(shell curl https://raw.githubusercontent.com/reshadi/jakets/v5.x.x/Makefile --create-dirs -o $(JAKETS__MAKEFILE) )
+  CMD_OUT += $(shell curl https://raw.githubusercontent.com/reshadi/jakets/v6.x.x/Makefile --create-dirs -o $(JAKETS__MAKEFILE) )
   $(info CMD_OUT="$(CMD_OUT)" )
 endif
 $(info JAKETS__DIR="$(dir $(JAKETS__MAKEFILE))" )
