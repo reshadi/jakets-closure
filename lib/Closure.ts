@@ -88,7 +88,7 @@ export function ClosureTask(
   , inputs: string[]
   , options?: ClosureOptions
   , enableGzip?: boolean
-): string {
+): Jakets.FileTaskType {
   options = GetOptions(inputs, output, options);
   let depInfo = new CommandInfo({
     Name: name,
@@ -108,5 +108,5 @@ export function ClosureTask(
     depInfo.Write();
 
     console.timeEnd(sectionName);
-  }).GetName();
+  });
 }
