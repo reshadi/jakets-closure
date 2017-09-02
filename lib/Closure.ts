@@ -100,13 +100,24 @@ export function ClosureTask(
     Dependencies: dependencies
   });
 
-  return Jakets.FileTask(depInfo.DependencyFile, depInfo.AllDependencies, async function () {
+  if (!Fs.existsSync(output) && Fs.existsSync(depInfo.DependencyFile)) {
+    //Output might have been deleted but dep is still there
+    Fs.unlinkSync(depInfo.DependencyFile);
+  }
+
+  let commandTask = Jakets.FileTask(depInfo.DependencyFile, depInfo.AllDependencies, async function () {
     let sectionName = `java closure compile ${depInfo.Data.Name} with ${depInfo.DependencyFile}`;
     console.time(sectionName);
 
-    await Exec(options, enableGzip);
     depInfo.Write();
+    await Exec(options, enableGzip);
 
     console.timeEnd(sectionName);
+  });
+
+  return Jakets.FileTask(output, [commandTask], async function () {
+    if (!Fs.existsSync(output)) {
+      throw `Cannot find file ${output}`;
+    }
   });
 }

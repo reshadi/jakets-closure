@@ -30,6 +30,7 @@ export interface ClosureOptions {
 
   /**  Overrides the value of variables annotated with @define, an object mapping names to primitive types */
   defines?: { [defineName: string]: string }; //=null
+  define?: string[]; //old style for backward compatibility ["k=v", "x=y"]
 
   /** Determines the set of builtin externs to load. Options: BROWSER, CUSTOM */
   env?: "BROWSER" | "CUSTOM"; //=BROWSER
@@ -77,7 +78,8 @@ export interface ClosureOptions {
   jsCode?: { src?: string; path?: string; sourceMap?: string; }[];
 
   /**  Additional externs to use for this compile. */
-  externs?: ClosureOptions["jsCode"];
+  // externs?: ClosureOptions["jsCode"];
+  externs?: (ClosureOptions["jsCode"][0] | string)[]; //Changed for backward compatibility
 
   /** Generates a source map mapping the generated source file back to its original sources. */
   createSourceMap?: boolean; //=false
@@ -101,23 +103,46 @@ export function GetOptions(closureOptions?: ClosureOptions): ClosureOptions {
   return allOptions;
 }
 
+async function ReadTextFile(path: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    Fs.readFile(path, { encoding: "utf8" }, (err, data) => {
+      if (err) {
+        const msg = `Cannot read file ${path} ${err}`;
+        Jakets.Log(msg, 0);
+        reject(msg);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
+
 export async function Exec(inputs: string[], output: string, closureOptions?: ClosureOptions, enableGzip?: boolean) {
   let allOptions = GetOptions(closureOptions);
 
+  if (allOptions.define) {
+    //Conver old style to new
+    allOptions.define.forEach(d => {
+      let [key, value] = d.split("=");
+      allOptions.defines[key] = value;
+    });
+    delete allOptions.define;
+  }
+
+  if (allOptions.externs) {
+    allOptions.externs = allOptions.externs.map(e => {
+      if (typeof e === "string") {
+        return { src: Fs.readFileSync(e, { encoding: "utf8" }) }
+      } else {
+        return e;
+      }
+    })
+  }
+
   //In case we wanted to ready all files async
-  let jsCode = await Promise.all(
-    inputs.map(f => new Promise((resolve, reject) => {
-      Fs.readFile(f, { encoding: "utf8" }, (err, data) => {
-        if (err) {
-          const msg = `Cannot read file ${f} ${err}`;
-          Jakets.Log(msg, 0);
-          reject(msg);
-        } else {
-          resolve({ src: data });
-        }
-      })
-    }))
-  );
+  let jsCode =
+    (await Promise.all(inputs.map(f => ReadTextFile(f))))
+      .map(text => { return { src: text }; });
   // let jsCode = inputs.map(f => { return { path: f } });
 
   allOptions.jsCode = (allOptions.jsCode && Array.isArray(allOptions.jsCode))
@@ -159,13 +184,24 @@ export function ClosureTask(
     Dependencies: dependencies
   });
 
-  return Jakets.FileTask(depInfo.DependencyFile, depInfo.AllDependencies, async function () {
+  if (!Fs.existsSync(output) && Fs.existsSync(depInfo.DependencyFile)) {
+    //Output might have been deleted but dep is still there
+    Fs.unlinkSync(depInfo.DependencyFile);
+  }
+
+  let commandTask = Jakets.FileTask(depInfo.DependencyFile, depInfo.AllDependencies, async function () {
     let sectionName = `closure compile ${depInfo.Data.Name} with ${depInfo.DependencyFile}`;
     console.time(sectionName);
 
-    await Exec(inputs, output, options, enableGzip);
     depInfo.Write();
+    await Exec(inputs, output, options, enableGzip);
 
     console.timeEnd(sectionName);
+  });
+
+  return Jakets.FileTask(output, [commandTask], async function () {
+    if (!Fs.existsSync(output)) {
+      throw `Cannot find file ${output}`;
+    }
   });
 }
