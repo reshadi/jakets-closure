@@ -29,7 +29,7 @@ export interface ClosureOptions {
   dartPass?: boolean; //=false
 
   /**  Overrides the value of variables annotated with @define, an object mapping names to primitive types */
-  defines?: { [defineName: string]: string }; //=null
+  defines?: { [defineName: string]: string | number | boolean }; //=null
   define?: string[]; //old style for backward compatibility ["k=v", "x=y"]
 
   /** Determines the set of builtin externs to load. Options: BROWSER, CUSTOM */
@@ -100,6 +100,17 @@ export const DefaultClosureOptions: ClosureOptions = {
 
 export function GetOptions(closureOptions?: ClosureOptions): ClosureOptions {
   let allOptions = Object.assign({}, DefaultClosureOptions, closureOptions || {});
+
+  if (allOptions.define) {
+    //Conver old style to new
+    allOptions.defines = allOptions.defines || {};
+    allOptions.define.forEach(d => {
+      let [key, value] = d.split("=");
+      allOptions.defines[key] = value;
+    });
+    delete allOptions.define;
+  }
+
   return allOptions;
 }
 
@@ -120,14 +131,6 @@ async function ReadTextFile(path: string): Promise<string> {
 export async function Exec(inputs: string[], output: string, closureOptions?: ClosureOptions, enableGzip?: boolean) {
   let allOptions = GetOptions(closureOptions);
 
-  if (allOptions.define) {
-    //Conver old style to new
-    allOptions.define.forEach(d => {
-      let [key, value] = d.split("=");
-      allOptions.defines[key] = value;
-    });
-    delete allOptions.define;
-  }
 
   if (allOptions.externs) {
     allOptions.externs = allOptions.externs.map(e => {
@@ -150,11 +153,16 @@ export async function Exec(inputs: string[], output: string, closureOptions?: Cl
     : jsCode
     ;
 
-  let results = <{ compiledCode: string; errors: string[]; }>ClosureCompiler.compile(allOptions);
+  let results = <{ compiledCode: string; errors: any[]; warnings: any[] }>ClosureCompiler.compile(allOptions);
   if (results.errors && results.errors.length > 1) {
-    console.error(results);
+    console.error(results.errors);
     throw "Closure error";
   }
+
+  if (results.warnings && results.warnings.length > 1) {
+    console.warn(results.warnings);
+  }
+
 
   jake.mkdirP(Path.dirname(output));
   Fs.writeFileSync(output, results.compiledCode, { encoding: "utf8" });
