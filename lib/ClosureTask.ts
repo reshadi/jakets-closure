@@ -128,7 +128,13 @@ async function ReadTextFile(path: string): Promise<string> {
   });
 }
 
-export async function Exec(inputs: string[], output: string, closureOptions?: ClosureOptions, enableGzip?: boolean) {
+export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(inputs: string[], output: string, closureOptions?: ClosureOptions, enableGzip?: boolean, depInfo?: CommandInfoType) {
+  let sectionName = depInfo
+    ? `closure compile ${depInfo.Data.Name} with ${depInfo.DependencyFile}`
+    : `closure compile ${output}`
+    ;
+  console.time(sectionName);
+
   let allOptions = GetOptions(closureOptions);
 
 
@@ -155,8 +161,8 @@ export async function Exec(inputs: string[], output: string, closureOptions?: Cl
 
   let results = <{ compiledCode: string; errors: any[]; warnings: any[] }>ClosureCompiler.compile(allOptions);
   if (results.errors && results.errors.length > 1) {
-    console.error(results.errors);
-    throw "Closure error";
+    this.Log(results.errors, 0);
+    process.exit(1);
   }
 
   if (results.warnings && results.warnings.length > 1) {
@@ -170,6 +176,8 @@ export async function Exec(inputs: string[], output: string, closureOptions?: Cl
   if (enableGzip) {
     return Jakets.ExecAsync(`gzip --best < ${output} > ${output}.gz`);
   }
+
+  console.timeEnd(sectionName);
 }
 
 export function ClosureTask(
@@ -198,13 +206,8 @@ export function ClosureTask(
   }
 
   let commandTask = Jakets.FileTask(depInfo.DependencyFile, depInfo.AllDependencies, async function () {
-    let sectionName = `closure compile ${depInfo.Data.Name} with ${depInfo.DependencyFile}`;
-    console.time(sectionName);
-
     depInfo.Write();
     await Exec(inputs, output, options, enableGzip);
-
-    console.timeEnd(sectionName);
   });
 
   return Jakets.FileTask(output, [commandTask], async function () {

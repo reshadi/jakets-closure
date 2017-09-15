@@ -50,7 +50,14 @@ export function GetOptions(inputs: string[], output: string, closureOptions?: Cl
   return allOptions;
 }
 
-export async function Exec(options: ClosureOptions, enableGzip?: boolean) {
+
+export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(options: ClosureOptions, enableGzip?: boolean, depInfo?: CommandInfoType) {
+  let sectionName = depInfo
+    ? `java closure compile ${depInfo.Data.Name} with ${depInfo.DependencyFile}`
+    : `java closure compile ${options.js_output_file}`
+    ;
+  console.time(sectionName);
+
   let args =
     Object.keys(options)
       .map(option => {
@@ -106,13 +113,8 @@ export function ClosureTask(
   }
 
   let commandTask = Jakets.FileTask(depInfo.DependencyFile, depInfo.AllDependencies, async function () {
-    let sectionName = `java closure compile ${depInfo.Data.Name} with ${depInfo.DependencyFile}`;
-    console.time(sectionName);
-
     depInfo.Write();
     await Exec(options, enableGzip);
-
-    console.timeEnd(sectionName);
   });
 
   return Jakets.FileTask(output, [commandTask], async function () {
