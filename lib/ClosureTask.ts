@@ -161,7 +161,7 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
 
   let results = <{ compiledCode: string; errors: any[]; warnings: any[] }>ClosureCompiler.compile(allOptions);
   if (results.errors && results.errors.length > 1) {
-    this.Log(results.errors, 0);
+    Jakets.Log(results.errors, 0);
     process.exit(1);
   }
 
