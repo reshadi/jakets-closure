@@ -160,12 +160,12 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
     ;
 
   let results = <{ compiledCode: string; errors: any[]; warnings: any[] }>ClosureCompiler.compile(allOptions);
-  if (results.errors && results.errors.length > 1) {
-    Jakets.Log(results.errors, 0);
+  if (results.errors && results.errors.length > 0) {
+    console.error(results.errors);
     process.exit(1);
   }
 
-  if (results.warnings && results.warnings.length > 1) {
+  if (results.warnings && results.warnings.length > 0) {
     console.warn(results.warnings);
   }
 
