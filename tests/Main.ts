@@ -1,9 +1,11 @@
 // import * as M1 from "./Module1";
 // import * as M2 from "./Module2";
 
+/** @define {string} */ var Message = "HELLO";
+
 namespace M1 {
   export function F1() {
-    return "Hello";
+    return Message;
   }
 
   export function F2() {
@@ -19,4 +21,6 @@ namespace M2 {
     return " universe!";
   }
 }
-console.log(`${M1.F1()} ${M1.F2()} and ${M2.F1()} ${M2.F2()}`);
+let msg = `${M1.F1()} ${M1.F2()} and ${M2.F1()} ${M2.F2()}`;
+console.log(msg);
+export default msg;

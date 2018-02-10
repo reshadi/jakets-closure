@@ -1,3 +1,4 @@
+import * as assert from "assert";
 import * as Jakets from "jakets/lib/Jakets";
 import * as Tsc from "jakets/lib/TscTask";
 
@@ -18,8 +19,26 @@ let CompileTask = Tsc.TscTask(
   }
 ).GetName();
 
-Jakets.GlobalTask(
-  "jtsc_test"
+let JavaClosureTask = Jakets.Task(
+  "java_closure"
+  , [
+    ClosureTaskJava(
+      "closure_java"
+      , [CompileTask]
+      , CompileDir + "/all_java.js"
+      , [CompileDir + "/Main.js"]
+      , {
+        define: ["Message='Hello'"]
+      }
+    )
+  ]
+  , async () => {
+    require(`../build/compile/all_java`);
+  }
+);
+
+let JsClosureTask = Jakets.Task(
+  "js_closure"
   , [
     ClosureTask(
       "closure"
@@ -31,18 +50,24 @@ Jakets.GlobalTask(
         applyInputSourceMaps: true,
         outputWrapper: '(function(){\n%output%\n})()',
         createSourceMap: true,
+        defines: {
+          "Message": "Hello"
+        },
+        externs: [{ src: "var exports;" }]
       }
-    ),
-    ClosureTaskJava(
-      "closure_java"
-      , [CompileTask]
-      , CompileDir + "/all_java.js"
-      , [CompileDir + "/Main.js"]
-    ),
+    )
   ]
   , async () => {
-    let resultDir = '../build/compile'; //MakeRelative(CompileDir);
-    require(`${resultDir}/all`);
-    require(`${resultDir}/all_java`);
+    let result = require(`../build/compile/all`);
+    console.log(result);
+    assert.equal(result.default, 'Hello  world! and Hi  universe!');
   }
+);
+
+Jakets.GlobalTask(
+  "jtsc_test"
+  , [
+    JsClosureTask,
+    // JavaClosureTask,
+  ]
 );
