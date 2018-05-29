@@ -173,11 +173,12 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
   jake.mkdirP(Path.dirname(output));
   Fs.writeFileSync(output, results.compiledCode, { encoding: "utf8" });
 
+  console.timeEnd(sectionName);
+
   if (enableGzip) {
     return Jakets.ExecAsync(`gzip --best < ${output} > ${output}.gz`);
   }
 
-  console.timeEnd(sectionName);
 }
 
 export function ClosureTask(
@@ -216,3 +217,7 @@ export function ClosureTask(
     }
   });
 }
+
+/* 
+  .\node_modules\.bin\google-closure-compiler-js.cmd  --applyInputSourceMaps true --assumeFunctionWrapper true --compilationLevel 'ADVANCED' --createSourceMap true --languageIn 'ES5' --outputWrapper '(function(){\n%output%\n})()' --warningLevel 'QUIET' --jsCode build/compile/Main.js
+*/
