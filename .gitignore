@@ -6,4 +6,3 @@ node_modules/
 *.dep.mk
 Out-Null
 build/
-package-lock.json
