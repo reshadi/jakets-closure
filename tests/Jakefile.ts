@@ -53,7 +53,10 @@ let JsClosureTask = Jakets.Task(
         defines: {
           "Message": "Hello"
         },
-        externs: [{ src: "var exports;" }]
+        externs: [
+          { src: "var exports;" },
+          MakeRelative("./externs.js"),
+        ]
       }
     )
   ]
