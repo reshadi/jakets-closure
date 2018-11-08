@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "outDir": "build",
+    "strict": true,
+    "target": "es2018"
+  },
+  // "exclude": [
+  //   "node_modules"
+  // ],
+}

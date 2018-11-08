@@ -1,13 +1,10 @@
 {
   "name": "jakets-closure",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "description": "Closure task for Jakets.",
   "main": "Jakefile.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "jakets:setup": "jake --jakefile node_modules/jakets/Jakefile.js jts:setup",
-    "jakets:build": "jake --jakefile Jakefile.js",
-    "jakets": "npm run jakets:setup && npm run jakets:build"
+    "test": "jakets jtsc_test"
   },
   "repository": {
     "type": "git",
