@@ -1,7 +1,9 @@
 import * as Path from "path";
 import * as Fs from "fs";
 import * as Zlib from "zlib";
-import * as ClosureCompiler from "google-closure-compiler-js";
+// import * as ClosureCompiler from "google-closure-compiler-js";
+const ClosureCompiler = require("google-closure-compiler-js");
+
 import * as Jakets from "jakets/lib/Jakets";
 import * as Util from "jakets/lib/Util";
 import { CommandInfo } from "jakets/lib/Command";
@@ -79,7 +81,7 @@ export interface ClosureOptions {
 
   /**  Additional externs to use for this compile. */
   // externs?: ClosureOptions["jsCode"];
-  externs?: (ClosureOptions["jsCode"][0] | string)[]; //Changed for backward compatibility
+  externs?: (Exclude<ClosureOptions["jsCode"], undefined>[0] | string)[]; //Changed for backward compatibility
 
   /** Generates a source map mapping the generated source file back to its original sources. */
   createSourceMap?: boolean; //=false
@@ -102,12 +104,13 @@ export function GetOptions(closureOptions?: ClosureOptions): ClosureOptions {
   let allOptions = Object.assign({}, DefaultClosureOptions, closureOptions || {});
 
   if (allOptions.define) {
-    //Conver old style to new
-    allOptions.defines = allOptions.defines || {};
+    //Convert old style to new
+    let defines = allOptions.defines || {};
     allOptions.define.forEach(d => {
       let [key, value] = d.split("=");
-      allOptions.defines[key] = value;
+      defines[key] = value;
     });
+    allOptions.defines = defines;
     delete allOptions.define;
   }
 
