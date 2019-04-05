@@ -1,11 +1,11 @@
 import * as Path from "path";
 import * as Fs from "fs";
+import * as Util from "util";
 import * as Zlib from "zlib";
 // import * as ClosureCompiler from "google-closure-compiler-js";
 const ClosureCompiler = require("google-closure-compiler-js");
 
 import * as Jakets from "jakets/lib/Jakets";
-import * as Util from "jakets/lib/Util";
 import { CommandInfo } from "jakets/lib/Command";
 
 type Languages = "ES3" | "ES5" | "ES6" | "ECMASCRIPT3" | "ECMASCRIPT5" | "ECMASCRIPT5_STRICT" | "ECMASCRIPT6" | "ECMASCRIPT6_STRICT" | "ECMASCRIPT6_TYPED";
@@ -140,6 +140,8 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
 
   let allOptions = GetOptions(closureOptions);
 
+  Jakets.Log(`options for ${sectionName}`, 0);
+  Jakets.Log(Util.inspect(allOptions, { depth: null }), 0);
 
   if (allOptions.externs) {
     allOptions.externs = allOptions.externs.map(e => {
@@ -196,7 +198,7 @@ export function ClosureTask(
 
   let depInfo = new CommandInfo({
     Name: name,
-    Dir: Path.resolve(Util.LocalDir),
+    Dir: Path.resolve(Jakets.LocalDir),
     Command: "closure-js",
     Inputs: inputs,
     Outputs: [output],
