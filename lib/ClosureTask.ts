@@ -140,7 +140,6 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
 
   let allOptions = GetOptions(closureOptions);
 
-
   if (allOptions.externs) {
     allOptions.externs = allOptions.externs.map(e => {
       if (typeof e === "string") {
@@ -189,10 +188,23 @@ export function ClosureTask(
   , dependencies: string[]
   , output: string
   , inputs: string[]
-  , options?: ClosureOptions
+  , closureOptions?: ClosureOptions
   , enableGzip?: boolean
 ): Jakets.FileTaskType {
-  options = GetOptions(options);
+
+  let allDeps = Array.from(dependencies);
+
+  let allOptions = GetOptions(closureOptions);
+
+  if (allOptions.externs) {
+    allOptions.externs.forEach(e => {
+      if (typeof e === 'string') {
+        allDeps.push(e);
+      } else if (e.path) {
+        allDeps.push(e.path);
+      }
+    });
+  }
 
   let depInfo = new CommandInfo({
     Name: name,
@@ -200,8 +212,8 @@ export function ClosureTask(
     Command: "closure-js",
     Inputs: inputs,
     Outputs: [output],
-    Options: options,
-    Dependencies: dependencies
+    Options: allOptions,
+    Dependencies: allDeps
   });
 
   if (!Fs.existsSync(output) && Fs.existsSync(depInfo.DependencyFile)) {
@@ -211,7 +223,7 @@ export function ClosureTask(
 
   let commandTask = Jakets.FileTask(depInfo.DependencyFile, depInfo.AllDependencies, async function () {
     depInfo.Write();
-    await Exec(inputs, output, options, enableGzip);
+    await Exec(inputs, output, allOptions, enableGzip);
   });
 
   return Jakets.FileTask(output, [commandTask], async function () {
