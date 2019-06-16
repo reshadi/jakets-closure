@@ -2,6 +2,7 @@ import * as Path from "path";
 import * as Fs from "fs";
 import * as Util from "util";
 import * as Zlib from "zlib";
+import * as ChildProcess from "child_process";
 // import * as ClosureCompiler from "google-closure-compiler-js";
 // const ClosureCompiler = require("google-closure-compiler-js");
 const ClosureJsCompiler = require("google-closure-compiler").jsCompiler;
@@ -156,6 +157,8 @@ async function ReadTextFile(path: string): Promise<string> {
   });
 }
 
+const ExecAsync = Util.promisify(ChildProcess.exec);
+
 export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(inputs: string[], output: string, closureOptions?: ClosureOptions, enableGzip?: boolean, depInfo?: CommandInfoType) {
   let sectionName = depInfo
     ? `closure compile ${depInfo.Data.Name} with ${depInfo.DependencyFile}`
@@ -188,7 +191,9 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
     delete allOptions.outputWrapper;
   }
 
-  let command = `npx google-closure-compiler `
+  let command =
+    // `node ./node_modules/bin/google-closure-compiler  --platform=javascript`
+    `npx google-closure-compiler --platform=javascript`
     + inputs.map(input => " --js=" + input).join("")
     + " --js_output_file=" + output
     + Object.keys(allOptions).map(key => {
@@ -209,8 +214,9 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
       }
     }).join(" ");
 
-  // console.log(command);
-  await Jakets.ExecAsync(command);
+  // await Jakets.ExecAsync(command);
+  Jakets.Log(command, 0);
+  await ExecAsync(command, { env: process.env });
 
   console.timeEnd(sectionName);
 
@@ -279,8 +285,8 @@ export function ClosureTask(
     allOptions.externs.forEach(e => {
       if (typeof e === 'string') {
         allDeps.push(e);
-      // } else if (e.path) {
-      //   allDeps.push(e.path);
+        // } else if (e.path) {
+        //   allDeps.push(e.path);
       }
     });
   }
