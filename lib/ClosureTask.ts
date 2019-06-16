@@ -115,16 +115,16 @@ export const DefaultClosureOptions: ClosureOptions = {
 export function GetOptions(closureOptions?: ClosureOptions): ClosureOptions {
   let allOptions = Object.assign({}, DefaultClosureOptions, closureOptions || {});
 
-  if (false && allOptions.define) {
-    //Convert array style to object style
-    let defines = allOptions.defines || {};
-    allOptions.define.forEach(d => {
-      let [key, value] = d.split("=");
-      defines[key] = value;
-    });
-    allOptions.defines = defines;
-    // delete allOptions.define;
-  }
+  // if (allOptions.define) {
+  //   //Convert array style to object style
+  //   let defines = allOptions.defines || {};
+  //   allOptions.define.forEach(d => {
+  //     let [key, value] = d.split("=");
+  //     defines[key] = value;
+  //   });
+  //   allOptions.defines = defines;
+  //   // delete allOptions.define;
+  // }
 
   if (allOptions.defines) {
     //Convert object style to array style
