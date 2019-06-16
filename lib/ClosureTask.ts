@@ -3,9 +3,15 @@ import * as Fs from "fs";
 import * as Util from "util";
 import * as Zlib from "zlib";
 import * as ChildProcess from "child_process";
-// import * as ClosureCompiler from "google-closure-compiler-js";
-// const ClosureCompiler = require("google-closure-compiler-js");
-const ClosureJsCompiler = require("google-closure-compiler").jsCompiler;
+const ClosureCompiler = require("google-closure-compiler").jsCompiler;
+
+let RunInJsPlatform = true;
+try {
+  const ClosureCompilerUtils = require("google-closure-compiler/lib/utils");
+  let supportedPlatform = ClosureCompilerUtils.getFirstSupportedPlatform(['native', 'java', 'javascript']);
+  RunInJsPlatform = supportedPlatform === 'javascript';
+} catch (e) {
+}
 
 import * as Jakets from "jakets/lib/Jakets";
 import { CommandInfo } from "jakets/lib/Command";
@@ -174,43 +180,65 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
   jake.mkdirP(Path.dirname(output));
 
   if (allOptions.externs) {
+    //Convert string externs to files
     allOptions.externs = allOptions.externs.map((e, index) => {
       if (typeof e === "string") {
         return e;
       } else {
         let extrenFile = output + `.${index}.extern.js`;
         Fs.writeFileSync(extrenFile, e.src, { encoding: "utf8" });
+        Jakets.Log(`extern string ${e.src} converted to extern file ${extrenFile}`, 0);
         return extrenFile;
       }
     });
   }
-  if (false && allOptions.outputWrapper) {
-    let outputWrapperFile = output + `.outputWrapper.js`;
-    Fs.writeFileSync(outputWrapperFile, allOptions.outputWrapper, { encoding: "utf8" });
-    allOptions.outputWrapperFile = outputWrapperFile;
-    delete allOptions.outputWrapper;
+
+  if (allOptions.outputWrapper) {
+    //Convert wrappers with new line to file
+    if (allOptions.outputWrapper.indexOf("\n") !== -1) { //Should we do this in general, or only in this case?
+      let outputWrapperFile = output + `.outputWrapper.js`;
+      Fs.writeFileSync(outputWrapperFile, allOptions.outputWrapper, { encoding: "utf8" });
+      allOptions.outputWrapperFile = outputWrapperFile;
+      Jakets.Log(`output wrapper string ${allOptions.outputWrapper} converted to outpt wrapper file ${outputWrapperFile}`, 0);
+      delete allOptions.outputWrapper;
+    }
   }
 
   let command =
-    // `node ./node_modules/bin/google-closure-compiler  --platform=javascript`
-    `npx google-closure-compiler --platform=javascript`
+    `npx google-closure-compiler`// --platform=javascript`
     + inputs.map(input => " --js=" + input).join("")
     + " --js_output_file=" + output
     + Object.keys(allOptions).map(key => {
       let value = (<any>allOptions)[key];
-      switch (key) {
-        case "define":
+
+      /**
+       * If we are not forcing js platform, we should convert keys to what java version also accepts
+       * So, we should convert camelCase keys to camel_case
+       */
+      let flag = key.replace(/([A-Z])/g, (str, upperCase) => "_" + upperCase.toLowerCase());
+
+      const GenerateOption = (value: string): string => {
+        switch (flag) {
+          //quoted string flags
+          case "define":
+          case "output_wrapper":
+            value = `"${value}"`;
+            break;
+
+          //dropped flags
+          case "output_wrapper_file":
+            if (RunInJsPlatform) {
+              Jakets.Log(`DROPPED flag ${flag}, not supported in js version of closure`, 0);
+              return "";
+            }
+        }
+        return ` --${flag}=${value}`;
       }
+
       if (Array.isArray(value)) {
-        switch (key) {
-          case "define": return value.map(v => ` --${key}="${v}"`).join("");
-          default: return value.map(v => ` --${key}=${v}`).join("");
-        }
+        return value.map(GenerateOption).join("");
       } else {
-        switch (key) {
-          case "outputWrapper": value = `"${value.replace(/\n/g, " ")}"`;
-        }
-        return ` --${key}=${value}`;
+        return GenerateOption(value);
       }
     }).join(" ");
 
@@ -235,7 +263,7 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
     // type Compiler = import("google-closure-compiler").Compiler;
     // type Run = (filelist: ClosureOptions['jsCode'], callback?: Parameters<Compiler['run']>[0]) => ReturnType<Compiler['run']>;
 
-    const compiler/* : Compiler & { run: Run } */ = new ClosureJsCompiler(allOptions);
+    const compiler/* : Compiler & { run: Run } */ = new ClosureCompiler(allOptions);
     const compilerProcess = compiler.run(
       inputs.map(input => ({ path: input }))/* allOptions.jsCode */,
       (exitCode: number, results: { path: string; sourceMape: string; src: string }[], stdErr: string) => {

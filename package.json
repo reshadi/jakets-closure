@@ -1,6 +1,6 @@
 {
   "name": "jakets-closure",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Closure task for Jakets.",
   "main": "Jakefile.js",
   "scripts": {
