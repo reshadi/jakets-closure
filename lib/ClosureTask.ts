@@ -3,13 +3,15 @@ import * as Fs from "fs";
 import * as Util from "util";
 import * as Zlib from "zlib";
 // import * as ClosureCompiler from "google-closure-compiler-js";
-const ClosureCompiler = require("google-closure-compiler-js");
+// const ClosureCompiler = require("google-closure-compiler-js");
+const ClosureJsCompiler = require("google-closure-compiler").jsCompiler;
 
 import * as Jakets from "jakets/lib/Jakets";
 import { CommandInfo } from "jakets/lib/Command";
 
 type Languages = "ES3" | "ES5" | "ES6" | "ECMASCRIPT3" | "ECMASCRIPT5" | "ECMASCRIPT5_STRICT" | "ECMASCRIPT6" | "ECMASCRIPT6_STRICT" | "ECMASCRIPT6_TYPED";
 export interface ClosureOptions {
+  //https://github.com/google/closure-compiler/wiki/Flags-and-Options
   //https://github.com/google/closure-compiler-js
 
   /** Generate $inject properties for AngularJS for functions annotated with @ngInject */
@@ -43,6 +45,9 @@ export interface ClosureOptions {
   /** Generates export code for those marked with @export. */
   generateExports?: boolean; //=false
 
+  /** Primary output filename. If not specified, output is written to stdout */
+  jsOutputFile?: string;
+
   /** Sets what language spec that input sources conform to. */
   languageIn?: Languages; //=ES6;
 
@@ -52,8 +57,13 @@ export interface ClosureOptions {
   /** Checks for type errors using the new type inference algorithm. */
   newTypeInf?: boolean; //=false
 
-  /**  Interpolate output into this string, replacing the token %output% */
+  /** Interpolate output into this string, replacing the token %output% */
   outputWrapper?: string; //=null;
+
+  /** Loads the specified file and passes the file contents to the --output_wrapper flag, replacing the value if it exists. 
+   * This is useful if you want special characters like newline in the wrapper 
+   */
+  outputWrapperFile?: string; //=null;
 
   /**  Specify the Polymer version pass to use. */
   polymerVersion?: string; //=null;
@@ -81,7 +91,8 @@ export interface ClosureOptions {
 
   /**  Additional externs to use for this compile. */
   // externs?: ClosureOptions["jsCode"];
-  externs?: (Exclude<ClosureOptions["jsCode"], undefined>[0] | string)[]; //Changed for backward compatibility
+  // externs?: (Exclude<ClosureOptions["jsCode"], undefined>[0] | string)[]; //Changed for backward compatibility
+  externs?: ({ src: string } | string)[]; //Changed for backward compatibility
 
   /** Generates a source map mapping the generated source file back to its original sources. */
   createSourceMap?: boolean; //=false
@@ -103,15 +114,29 @@ export const DefaultClosureOptions: ClosureOptions = {
 export function GetOptions(closureOptions?: ClosureOptions): ClosureOptions {
   let allOptions = Object.assign({}, DefaultClosureOptions, closureOptions || {});
 
-  if (allOptions.define) {
-    //Convert old style to new
+  if (false && allOptions.define) {
+    //Convert array style to object style
     let defines = allOptions.defines || {};
     allOptions.define.forEach(d => {
       let [key, value] = d.split("=");
       defines[key] = value;
     });
     allOptions.defines = defines;
-    delete allOptions.define;
+    // delete allOptions.define;
+  }
+
+  if (allOptions.defines) {
+    //Convert object style to array style
+    let defines = allOptions.defines;
+    allOptions.define =
+      Object.keys(allOptions.defines)
+        .map(key => {
+          let value = defines[key];
+          return (typeof value === "string" && !/^'[^']*'$/.test(value)) ? `${key}='${value}'` : `${key}=${value}`;
+        })
+        .concat(allOptions.define || []) //Already mixed define and defines
+      ;
+    delete allOptions.defines;
   }
 
   return allOptions;
@@ -142,48 +167,99 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
 
   Jakets.Log(`options for ${sectionName}`, 0);
   Jakets.Log(Util.inspect(allOptions, { depth: null }), 0);
+  // allOptions.jsOutputFile = output;
+  jake.mkdirP(Path.dirname(output));
 
   if (allOptions.externs) {
-    allOptions.externs = allOptions.externs.map(e => {
+    allOptions.externs = allOptions.externs.map((e, index) => {
       if (typeof e === "string") {
-        return { src: Fs.readFileSync(e, { encoding: "utf8" }) }
-      } else {
         return e;
+      } else {
+        let extrenFile = output + `.${index}.extern.js`;
+        Fs.writeFileSync(extrenFile, e.src, { encoding: "utf8" });
+        return extrenFile;
       }
-    })
+    });
+  }
+  if (false && allOptions.outputWrapper) {
+    let outputWrapperFile = output + `.outputWrapper.js`;
+    Fs.writeFileSync(outputWrapperFile, allOptions.outputWrapper, { encoding: "utf8" });
+    allOptions.outputWrapperFile = outputWrapperFile;
+    delete allOptions.outputWrapper;
   }
 
-  //In case we wanted to ready all files async
-  let jsCode =
-    (await Promise.all(inputs.map(f => ReadTextFile(f))))
-      .map(text => { return { src: text }; });
-  // let jsCode = inputs.map(f => { return { path: f } });
+  let command = `npx google-closure-compiler `
+    + inputs.map(input => " --js=" + input).join("")
+    + " --js_output_file=" + output
+    + Object.keys(allOptions).map(key => {
+      let value = (<any>allOptions)[key];
+      switch (key) {
+        case "define":
+      }
+      if (Array.isArray(value)) {
+        switch (key) {
+          case "define": return value.map(v => ` --${key}="${v}"`).join("");
+          default: return value.map(v => ` --${key}=${v}`).join("");
+        }
+      } else {
+        switch (key) {
+          case "outputWrapper": value = `"${value.replace(/\n/g, " ")}"`;
+        }
+        return ` --${key}=${value}`;
+      }
+    }).join(" ");
 
-  allOptions.jsCode = (allOptions.jsCode && Array.isArray(allOptions.jsCode))
-    ? allOptions.jsCode.concat(jsCode)
-    : jsCode
-    ;
-
-  let results = <{ compiledCode: string; errors: any[]; warnings: any[] }>ClosureCompiler.compile(allOptions);
-  if (results.errors && results.errors.length > 0) {
-    console.error(results.errors);
-    process.exit(1);
-  }
-
-  if (results.warnings && results.warnings.length > 0) {
-    console.warn(results.warnings);
-  }
-
-
-  jake.mkdirP(Path.dirname(output));
-  Fs.writeFileSync(output, results.compiledCode, { encoding: "utf8" });
+  // console.log(command);
+  await Jakets.ExecAsync(command);
 
   console.timeEnd(sectionName);
 
   if (enableGzip) {
-    return Jakets.ExecAsync(`gzip --best < ${output} > ${output}.gz`);
+    await Jakets.ExecAsync(`gzip --best < ${output} > ${output}.gz`);
   }
 
+  return;
+  /**
+   * The following would have worked, except
+   * - The code is serial and wont run multiple tasks in parallel
+   * - If java is available, will not use that
+   * - Has problem with --define
+   */
+  return new Promise((resolve, reject) => {
+    // type Compiler = import("google-closure-compiler").Compiler;
+    // type Run = (filelist: ClosureOptions['jsCode'], callback?: Parameters<Compiler['run']>[0]) => ReturnType<Compiler['run']>;
+
+    const compiler/* : Compiler & { run: Run } */ = new ClosureJsCompiler(allOptions);
+    const compilerProcess = compiler.run(
+      inputs.map(input => ({ path: input }))/* allOptions.jsCode */,
+      (exitCode: number, results: { path: string; sourceMape: string; src: string }[], stdErr: string) => {
+        if (exitCode > 0) {
+          console.error(stdErr);
+          reject();
+          process.exit(1);
+        }
+
+        console.warn(stdErr);
+        console.log(results);
+
+        for (let result of results) {
+          jake.mkdirP(Path.dirname(result.path));
+          Fs.writeFileSync(result.path, result.src, { encoding: "utf8" });
+          if (result.sourceMape) {
+            Fs.writeFileSync(result.path + ".map", result.sourceMape, { encoding: "utf8" });
+          }
+        }
+
+        console.timeEnd(sectionName);
+
+        if (enableGzip) {
+          Jakets.ExecAsync(`gzip --best < ${output} > ${output}.gz`).then(resolve, reject);
+        } else {
+          resolve();
+        }
+      }
+    );
+  });
 }
 
 export function ClosureTask(
@@ -203,8 +279,8 @@ export function ClosureTask(
     allOptions.externs.forEach(e => {
       if (typeof e === 'string') {
         allDeps.push(e);
-      } else if (e.path) {
-        allDeps.push(e.path);
+      // } else if (e.path) {
+      //   allDeps.push(e.path);
       }
     });
   }
@@ -236,6 +312,6 @@ export function ClosureTask(
   });
 }
 
-/* 
+/*
   .\node_modules\.bin\google-closure-compiler-js.cmd  --applyInputSourceMaps true --assumeFunctionWrapper true --compilationLevel 'ADVANCED' --createSourceMap true --languageIn 'ES5' --outputWrapper '(function(){\n%output%\n})()' --warningLevel 'QUIET' --jsCode build/compile/Main.js
 */

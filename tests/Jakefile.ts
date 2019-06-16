@@ -50,6 +50,7 @@ let JsClosureTask = Jakets.Task(
         applyInputSourceMaps: true,
         outputWrapper: '(function(){\n%output%\n})()',
         createSourceMap: true,
+        // define: ["Message='Hello'"],
         defines: {
           "Message": "Hello"
         },
