@@ -1,6 +1,6 @@
 {
   "name": "jakets-closure",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Closure task for Jakets.",
   "main": "Jakefile.js",
   "scripts": {
@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/reshadi/jakets-closure",
   "dependencies": {
-    "google-closure-compiler": "^20190528.0.0",
+    "google-closure-compiler": "^20190618.0.0",
     "jakets": "^7.6.5"
   }
 }

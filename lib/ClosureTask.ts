@@ -2,19 +2,27 @@ import * as Path from "path";
 import * as Fs from "fs";
 import * as Util from "util";
 import * as Zlib from "zlib";
+import * as Jakets from "jakets/lib/Jakets";
+import { CommandInfo } from "jakets/lib/Command";
+
 import * as ChildProcess from "child_process";
 const ClosureCompiler = require("google-closure-compiler").jsCompiler;
 
 let RunInJsPlatform = true;
+let SupportedPlatform: string;
 try {
   const ClosureCompilerUtils = require("google-closure-compiler/lib/utils");
-  let supportedPlatform = ClosureCompilerUtils.getFirstSupportedPlatform(['native', 'java', 'javascript']);
-  RunInJsPlatform = supportedPlatform === 'javascript';
+  let checkPlatforms = ['native', 'java', 'javascript'];
+  if (process.platform === "win32"){
+    checkPlatforms.shift(); //Drop native since it has bug
+  }
+  Jakets.Log(`Detecting google-closure-compiler mode from [${checkPlatforms.join()}]`, 0);
+  SupportedPlatform = ClosureCompilerUtils.getFirstSupportedPlatform(checkPlatforms);
+  Jakets.Log(`Running google-closure-compiler in ${SupportedPlatform} mode`, 0);
+  RunInJsPlatform = SupportedPlatform === 'javascript';
 } catch (e) {
+  Jakets.Log(`Error detecting google-closure-compiler in mode ${e}`, 0);
 }
-
-import * as Jakets from "jakets/lib/Jakets";
-import { CommandInfo } from "jakets/lib/Command";
 
 type Languages = "ES3" | "ES5" | "ES6" | "ECMASCRIPT3" | "ECMASCRIPT5" | "ECMASCRIPT5_STRICT" | "ECMASCRIPT6" | "ECMASCRIPT6_STRICT" | "ECMASCRIPT6_TYPED";
 export interface ClosureOptions {
@@ -205,7 +213,8 @@ export async function Exec<CommandInfoType extends CommandInfo = CommandInfo>(in
   }
 
   let command =
-    `npx google-closure-compiler`// --platform=javascript`
+    `npx google-closure-compiler`
+    + ` --platform=${SupportedPlatform}`
     + inputs.map(input => " --js=" + input).join("")
     + " --js_output_file=" + output
     + Object.keys(allOptions).map(key => {
